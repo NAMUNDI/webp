@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>퍼즐 로그인</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #f0f4f7;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    form {
+      background: white;
+      padding: 40px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      width: 300px;
+    }
+    h2 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    label {
+      display: block;
+      margin-top: 15px;
+    }
+    input {
+      width: 100%;
+      padding: 10px;
+      margin-top: 5px;
+      box-sizing: border-box;
+    }
+    button {
+      margin-top: 20px;
+      width: 100%;
+      padding: 10px;
+      background-color: #007BFF;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    #registerBox {
+      margin-top: 20px;
+      text-align: center;
+      font-size: 14px;
+    }
+    #registerPopup {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: white;
+      padding: 30px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.2);
+      border-radius: 10px;
+    }
+    #registerPopup input {
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <form id="loginForm">
+    <h2>퍼즐 로그인</h2>
+    <label for="id">아이디</label>
+    <input type="text" id="id" required>
+
+    <label for="pw">비밀번호</label>
+    <input type="password" id="pw" required>
+
+    <button type="submit">로그인</button>
+    <div id="registerBox">
+      계정이 없으신가요? <a href="#" onclick="openRegisterPopup()">회원가입</a>
+    </div>
+  </form>
+
+  <div id="registerPopup">
+    <h3>회원가입</h3>
+    <label>아이디 <input type="text" id="newId"></label>
+    <label>비밀번호 <input type="password" id="newPw"></label>
+    <label>닉네임 <input type="text" id="newNick"></label>
+    <button onclick="registerUser()">가입하기</button>
+    <button onclick="closeRegisterPopup()">닫기</button>
+    <p id="registerMsg"></p>
+  </div>
+
+  <script>
+    const loginForm = document.getElementById("loginForm");
+
+    loginForm.addEventListener("submit", function (e) {
+      e.preventDefault();
+      const id = document.getElementById("id").value;
+      const pw = document.getElementById("pw").value;
+      const savedPw = localStorage.getItem("user_pw_" + id);
+      const nickname = localStorage.getItem("user_nick_" + id);
+
+      if (savedPw === pw) {
+        localStorage.setItem("puzzle_user_nickname", nickname);
+        alert("로그인 성공");
+        location.href = "index.html"; // 퍼즐 메인 페이지로 연결
+      } else {
+        alert("아이디 또는 비밀번호가 틀렸습니다");
+      }
+    });
+
+    function openRegisterPopup() {
+      document.getElementById("registerPopup").style.display = "block";
+    }
+
+    function closeRegisterPopup() {
+      document.getElementById("registerPopup").style.display = "none";
+      document.getElementById("registerMsg").textContent = "";
+    }
+
+    function registerUser() {
+      const id = document.getElementById("newId").value;
+      const pw = document.getElementById("newPw").value;
+      const nick = document.getElementById("newNick").value;
+
+      if (id && pw && nick) {
+        localStorage.setItem("user_pw_" + id, pw);
+        localStorage.setItem("user_nick_" + id, nick);
+        document.getElementById("registerMsg").textContent = "가입 완료! 로그인 해주세요.";
+      } else {
+        document.getElementById("registerMsg").textContent = "모든 항목을 입력해주세요.";
+      }
+    }
+  </script>
+</body>
+</html>

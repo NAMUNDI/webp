@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>3x3 맞추기</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #f5f5f5;
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+    }
+    #container {
+      display: flex;
+      max-width: 1200px;
+      width: 100%;
+      gap: 40px;
+      justify-content: space-between;
+    }
+    #sidebar, #ranking {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+      background: white;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      width: 150px;
+    }
+    #sidebar {
+      gap: 10px;
+    }
+    .thumb {
+      width: 100%;
+      height: auto;
+      border: 2px solid #ccc;
+      cursor: pointer;
+      border-radius: 5px;
+    }
+    .thumb:hover {
+      border-color: #007BFF;
+    }
+    #main {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    #timer {
+      font-size: 1.2em;
+      margin-top: 10px;
+      color: #333;
+    }
+    #puzzle {
+      width: 300px;
+      height: 300px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(3, 1fr);
+      gap: 2px;
+      margin-top: 20px;
+    }
+    .tile {
+      background-size: 300px 300px;
+      border: 1px solid #ccc;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    .empty {
+      background: #fff;
+      cursor: default;
+    }
+    button {
+      margin-top: 30px;
+      padding: 10px 20px;
+      border: none;
+      background: #007BFF;
+      color: white;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+    #ranking h3 {
+      margin-bottom: 10px;
+    }
+    #rankingList li {
+      text-align: left;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <script>
+    // 로그인 상태 확인: 닉네임 없으면 로그인 페이지로 이동
+    if (!localStorage.getItem('puzzle_user_nickname')) {
+      alert("로그인 후 이용해주세요.");
+      location.href = "login.html";
+    }
+  </script>
+
+  <div id="container">
+    <div id="sidebar">
+      <img src="puzzle1.jpg" class="thumb" onclick="changePuzzleImage('puzzle1.jpg')">
+      <img src="puzzle2.jpg" class="thumb" onclick="changePuzzleImage('puzzle2.jpg')">
+      <img src="puzzle3.jpg" class="thumb" onclick="changePuzzleImage('puzzle3.jpg')">
+    </div>
+
+    <div id="main">
+      <h1>🧩 3x3 퍼즐 맞추기</h1>
+      <div id="timer">시간: 0초</div>
+      <div id="puzzle"></div>
+      <button onclick="shuffleTiles()">퍼즐 섞기</button>
+    </div>
+
+    <div id="ranking">
+      <h3>🏆 랭킹</h3>
+      <ul id="rankingList"></ul>
+    </div>
+  </div>
+
+  <script>
+    const puzzle = document.getElementById('puzzle');
+    const timerDisplay = document.getElementById('timer');
+    const rankingList = document.getElementById('rankingList');
+    let tiles = [];
+    let timer = null;
+    let seconds = 0;
+    let currentImage = 'puzzle1.jpg';
+    let currentUser = localStorage.getItem('puzzle_user_nickname') || '플레이어';
+
+    function startTimer() {
+      stopTimer();
+      seconds = 0;
+      timerDisplay.textContent = `시간: 0초`;
+      timer = setInterval(() => {
+        seconds++;
+        timerDisplay.textContent = `시간: ${seconds}초`;
+      }, 1000);
+    }
+
+    function stopTimer() {
+      if (timer !== null) clearInterval(timer);
+    }
+
+    function checkComplete() {
+      for (let i = 0; i < 9; i++) {
+        if (tiles[i].dataset.correct != i) return false;
+      }
+      stopTimer();
+      setTimeout(() => {
+        saveRanking(currentImage, currentUser, seconds);
+        showRanking(currentImage);
+        alert(`퍼즐 완료! (${seconds}초)\n랭킹에 등록되었습니다.`);
+      }, 100);
+      return true;
+    }
+
+    function createTiles() {
+      tiles = [];
+      for (let i = 0; i < 9; i++) {
+        const tile = document.createElement('div');
+        tile.classList.add('tile');
+        tile.dataset.correct = i;
+        if (i === 8) tile.classList.add('empty');
+        else {
+          const x = (i % 3) * 100;
+          const y = Math.floor(i / 3) * 100;
+          tile.style.backgroundImage = `url('${currentImage}')`;
+          tile.style.backgroundPosition = `-${x}px -${y}px`;
+        }
+        tiles.push(tile);
+      }
+      drawTiles();
+    }
+
+    function drawTiles() {
+      puzzle.innerHTML = '';
+      tiles.forEach((tile, idx) => {
+        tile.dataset.index = idx;
+        tile.onclick = () => moveTile(idx);
+        puzzle.appendChild(tile);
+      });
+    }
+
+    function isAdjacent(index1, index2) {
+      const x1 = index1 % 3, y1 = Math.floor(index1 / 3);
+      const x2 = index2 % 3, y2 = Math.floor(index2 / 3);
+      return (Math.abs(x1 - x2) + Math.abs(y1 - y2)) === 1;
+    }
+
+    function moveTile(index) {
+      const emptyIndex = tiles.findIndex(t => t.classList.contains('empty'));
+      if (isAdjacent(index, emptyIndex)) {
+        [tiles[index], tiles[emptyIndex]] = [tiles[emptyIndex], tiles[index]];
+        drawTiles();
+        checkComplete();
+      }
+    }
+
+    function shuffleTiles() {
+      let emptyIndex = 8;
+      for (let i = 0; i < 100; i++) {
+        const neighbors = getMovableIndices(emptyIndex);
+        const target = neighbors[Math.floor(Math.random() * neighbors.length)];
+        [tiles[emptyIndex], tiles[target]] = [tiles[target], tiles[emptyIndex]];
+        emptyIndex = target;
+      }
+      drawTiles();
+      startTimer();
+    }
+
+    function getMovableIndices(emptyIndex) {
+      const result = [];
+      const x = emptyIndex % 3;
+      const y = Math.floor(emptyIndex / 3);
+      const moves = [
+        { dx: 0, dy: -1 },
+        { dx: 0, dy: 1 },
+        { dx: -1, dy: 0 },
+        { dx: 1, dy: 0 }
+      ];
+      for (let move of moves) {
+        const nx = x + move.dx;
+        const ny = y + move.dy;
+        if (nx >= 0 && nx < 3 && ny >= 0 && ny < 3) {
+          result.push(ny * 3 + nx);
+        }
+      }
+      return result;
+    }
+
+    function saveRanking(image, name, time) {
+      const key = `puzzle_ranking_${image}`;
+      const records = JSON.parse(localStorage.getItem(key) || '[]');
+      records.push({ name, time });
+      records.sort((a, b) => a.time - b.time);
+      localStorage.setItem(key, JSON.stringify(records));
+    }
+
+    function showRanking(image) {
+      const key = `puzzle_ranking_${image}`;
+      const records = JSON.parse(localStorage.getItem(key) || '[]');
+      rankingList.innerHTML = '';
+      records.slice(0, 5).forEach((r, i) => {
+        const li = document.createElement('li');
+        li.textContent = `${i + 1}위: ${r.name} - ${r.time}초`;
+        rankingList.appendChild(li);
+      });
+    }
+
+    function changePuzzleImage(imageName) {
+      currentImage = imageName;
+      createTiles();
+      showRanking(imageName);
+    }
+
+    changePuzzleImage(currentImage);
+  </script>
+</body>
+</html>
